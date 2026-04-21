@@ -1,13 +1,18 @@
 from app.services.policy_service import PolicyService
+from app.services.semantic_service import SemanticService
 
 
 class DetectionService:
     """
-    Rule-based prompt attack detector using both exact phrases and weighted keywords.
+    Hybrid prompt attack detector using:
+    1. exact suspicious phrase matching
+    2. broader keyword scoring
+    3. semantic similarity against known attack prompts
     """
 
     def __init__(self):
         self.policy_service = PolicyService()
+        self.semantic_service = SemanticService()
 
         self.phrase_rules = {
             "instruction_override": [
@@ -95,14 +100,12 @@ class DetectionService:
     def analyze(self, prompt: str) -> dict:
         prompt_lower = prompt.lower()
         reasons = []
-        matched_categories = set()
         risk_score = 0.0
 
         # Strong phrase matches
         for category, phrases in self.phrase_rules.items():
             for phrase in phrases:
                 if phrase in prompt_lower:
-                    matched_categories.add(category)
                     reasons.append(f"Matched phrase: '{phrase}'")
                     risk_score += self.phrase_weights[category]
                     break
@@ -115,11 +118,24 @@ class DetectionService:
                     keyword_matches += 1
 
             if keyword_matches > 0:
-                matched_categories.add(category)
-                risk_score += min(keyword_matches * self.keyword_weights[category], 0.35)
+                added_score = min(keyword_matches * self.keyword_weights[category], 0.35)
+                risk_score += added_score
                 reasons.append(
                     f"Matched {keyword_matches} keyword(s) in category '{category}'"
                 )
+
+        # Semantic similarity score
+        semantic_similarity = self.semantic_service.compute_similarity(prompt)
+        if semantic_similarity >= 0.70:
+            risk_score += 0.40
+            reasons.append(
+                f"High semantic similarity to known attack prompts ({semantic_similarity:.2f})"
+            )
+        elif semantic_similarity >= 0.55:
+            risk_score += 0.20
+            reasons.append(
+                f"Moderate semantic similarity to known attack prompts ({semantic_similarity:.2f})"
+            )
 
         risk_score = min(risk_score, 1.0)
 

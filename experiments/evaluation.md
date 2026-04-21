@@ -209,3 +209,25 @@ PromptShield demonstrates that:
 - Realistic evaluation is essential to uncover system limitations
 
 This project highlights the challenges of securing LLM systems and the importance of combining rule-based and semantic approaches for robust prompt attack detection.
+
+## Version 4: Hybrid Detection with Semantic Similarity
+
+### Change
+Added an embedding-based semantic similarity layer using `sentence-transformers/all-MiniLM-L6-v2`.
+
+### Motivation
+Earlier rule-based versions improved detection, but still missed paraphrased and indirect attack prompts. Semantic similarity was added to improve generalization beyond exact keywords and phrases.
+
+### Result
+On the 25-safe / 25-attack evaluation set, the semantic-enhanced detector achieved **1.00 accuracy**.
+
+### Interpretation
+The semantic layer substantially improved robustness against paraphrased attacks while preserving correct classification of safe prompts.
+
+### Conclusion
+Combining:
+- exact phrase matching
+- keyword scoring
+- semantic similarity
+
+produced the strongest detector and demonstrated the value of hybrid AI security systems.

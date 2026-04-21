@@ -231,3 +231,45 @@ Combining:
 - semantic similarity
 
 produced the strongest detector and demonstrated the value of hybrid AI security systems.
+
+## Adversarial Robustness Test
+
+### Goal
+Evaluate whether the detector can still identify attacks after simple paraphrasing and mutation.
+
+### Method
+A script generated 50 mutated attack prompts by replacing words in known attack templates with semantically similar alternatives (e.g. “ignore” → “disregard”, “reveal” → “show”, “prompt” → “instructions”).
+
+### Result
+- Generated attacks: 50
+- Detected attacks: 48
+- Missed attacks: 2
+- Adversarial Detection Rate: **0.96**
+
+### Interpretation
+The detector remained highly effective under prompt mutation, suggesting that the hybrid phrase + keyword + semantic similarity design is robust to many paraphrased attack attempts. However, a small number of variants still bypassed detection, indicating room for further improvement.
+
+
+## Adversarial Robustness Test
+
+### Goal
+Evaluate whether the detector remains effective under paraphrased and mutated attack prompts.
+
+### Method
+A script generated 50 adversarial prompts by randomly mutating known attack templates using synonym replacement and phrase variation.
+
+### Results
+- Generated attacks: 50  
+- Detected attacks: 47  
+- Missed attacks: 3  
+- Adversarial Detection Rate: **0.94**
+
+### Analysis
+The detector successfully identified the majority of paraphrased attacks. The remaining missed cases involved:
+
+- weaker keyword signals (e.g., “constraints” instead of “instructions”)  
+- lower semantic similarity scores (~0.58–0.64)  
+- less explicit malicious phrasing  
+
+### Conclusion
+The hybrid detection approach (rules + keywords + semantic similarity) is robust to most adversarial variations, but still has limitations when attack signals are subtle or indirect.

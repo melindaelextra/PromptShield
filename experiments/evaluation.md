@@ -273,3 +273,24 @@ The detector successfully identified the majority of paraphrased attacks. The re
 
 ### Conclusion
 The hybrid detection approach (rules + keywords + semantic similarity) is robust to most adversarial variations, but still has limitations when attack signals are subtle or indirect.
+
+## Latency Benchmark
+
+### Goal
+Measure the performance cost of stronger detection logic.
+
+### Modes
+- Rules only
+- Hybrid (rules + keywords)
+- Full (rules + keywords + semantic similarity)
+
+### Results
+
+| Mode | Average Latency | P50 | P95 |
+|------|-----------------|-----|-----|
+| Rules only | ~0.00 ms | ~0.00 ms | ~0.01 ms |
+| Hybrid | ~0.01 ms | ~0.01 ms | ~0.01 ms |
+| Full (semantic) | 8.80 ms | 8.36 ms | 11.13 ms |
+
+### Interpretation
+The semantic detector adds measurable latency, but remains efficient, with median latency under 10 ms. This suggests that stronger LLM firewalling can be added without making the system too slow for practical API use.

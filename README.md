@@ -59,17 +59,15 @@ This improves robustness against paraphrased and adversarial attacks.
 
 PromptShield provides a protected `/chat` endpoint that:
 
-- analyzes incoming prompts
-- assigns risk levels
-- enforces security policies before model inference
+- analyzes incoming prompts  
+- assigns risk levels  
+- enforces security policies before model inference  
 
-Example behavior:
-
-| Input Type | Result |
-|-----------|--------|
-| Safe prompt | forwarded to LLM |
-| Suspicious prompt | warning + response |
-| High-risk prompt | blocked |
+| Input Type | Behavior |
+|-----------|---------|
+| Safe | forwarded to LLM |
+| Suspicious | warning + response |
+| High-risk | blocked |
 
 ---
 
@@ -106,6 +104,21 @@ PromptShield was evaluated on automatically generated adversarial prompts using 
 
 ---
 
+## ⚡ Latency vs Security Trade-off
+
+PromptShield was benchmarked in three detection modes:
+
+| Mode | Avg Latency | P50 | P95 | Description |
+|------|------------|-----|-----|-------------|
+| Rules only | ~0.00 ms | ~0.00 ms | ~0.01 ms | Fastest, minimal detection |
+| Hybrid | ~0.01 ms | ~0.01 ms | ~0.01 ms | Rules + keywords |
+| Full (semantic) | **8.80 ms** | **8.36 ms** | **11.13 ms** | Strongest detection |
+
+### Insight
+Semantic similarity significantly improves robustness against paraphrased attacks while maintaining low latency (<10 ms median), demonstrating a practical trade-off between security strength and performance.
+
+---
+
 ## ⚠️ Failure Analysis
 
 The remaining missed adversarial example involved:
@@ -125,7 +138,7 @@ Prompt → Detection Service → Risk Score → Policy Engine → Action
 ```
 
 Components:
-- `DetectionService` (rules + semantic scoring)
+- `DetectionService` (rules + keyword + semantic scoring)
 - `SemanticService` (embedding similarity)
 - `PolicyService` (decision logic)
 - FastAPI API layer
@@ -197,6 +210,7 @@ http://127.0.0.1:8000/docs
 ```bash
 python -m scripts.run_eval
 python -m scripts.adversarial_test
+python -m scripts.latency_benchmark
 ```
 
 ---
@@ -220,7 +234,7 @@ to prevent:
 ## 🚀 Future Improvements
 
 - semantic threshold tuning  
-- contextual multi-turn detection  
+- multi-turn conversation detection  
 - ML-based classifier  
 - larger adversarial datasets  
 
@@ -230,16 +244,16 @@ to prevent:
 
 - Built a production-style LLM firewall  
 - Achieved **1.00 accuracy** on curated evaluation  
-- Achieved **0.98 detection rate** on adversarial prompts  
+- Achieved **0.98 detection rate** under adversarial attacks  
 - Designed hybrid detection combining rules + embeddings  
 - Implemented adversarial testing framework  
-- Demonstrated real-world trade-offs in AI safety  
+- Demonstrated real-world trade-offs between latency and security  
 
 ---
 
 ## 📌 Takeaway
 
-> Securing LLM systems requires more than static rules — robust defense must handle adversarial variation and evolving attack strategies.
+> Securing LLM systems requires more than static rules — robust defense must handle adversarial variation, semantic ambiguity, and performance constraints.
 
 ---
 

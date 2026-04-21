@@ -4,16 +4,21 @@ from app.services.semantic_service import SemanticService
 
 class DetectionService:
     """
-    Hybrid prompt attack detector using:
-    1. exact suspicious phrase matching
-    2. broader keyword scoring
-    3. semantic similarity against known attack prompts
-    4. combination rules for stronger high-risk patterns
+    Hybrid prompt attack detector supporting 3 modes:
+
+    - rules_only: exact phrase rules only
+    - hybrid: exact phrase rules + keyword scoring
+    - full: exact phrase rules + keyword scoring + semantic similarity
     """
 
-    def __init__(self):
+    def __init__(self, mode: str = "full"):
         self.policy_service = PolicyService()
-        self.semantic_service = SemanticService()
+        self.mode = mode
+
+        if self.mode not in {"rules_only", "hybrid", "full"}:
+            raise ValueError("mode must be one of: rules_only, hybrid, full")
+
+        self.semantic_service = SemanticService() if self.mode == "full" else None
 
         self.phrase_rules = {
             "instruction_override": [
@@ -117,7 +122,7 @@ class DetectionService:
         reasons = []
         risk_score = 0.0
 
-        # Strong phrase matches
+        # 1. Exact phrase matches (all modes)
         for category, phrases in self.phrase_rules.items():
             for phrase in phrases:
                 if phrase in prompt_lower:
@@ -125,56 +130,75 @@ class DetectionService:
                     risk_score += self.phrase_weights[category]
                     break
 
-        # Broader keyword signals
-        for category, keywords in self.keyword_rules.items():
-            keyword_matches = 0
-            for keyword in keywords:
-                if keyword in prompt_lower:
-                    keyword_matches += 1
+        # 2. Keyword scoring (hybrid + full)
+        if self.mode in {"hybrid", "full"}:
+            for category, keywords in self.keyword_rules.items():
+                keyword_matches = 0
+                for keyword in keywords:
+                    if keyword in prompt_lower:
+                        keyword_matches += 1
 
-            if keyword_matches > 0:
-                added_score = min(keyword_matches * self.keyword_weights[category], 0.35)
-                risk_score += added_score
+                if keyword_matches > 0:
+                    added_score = min(keyword_matches * self.keyword_weights[category], 0.35)
+                    risk_score += added_score
+                    reasons.append(
+                        f"Matched {keyword_matches} keyword(s) in category '{category}'"
+                    )
+
+            privileged_role_terms = [
+                "act as admin",
+                "act as administrator",
+                "root user",
+                "administrator",
+                "admin",
+            ]
+            sensitive_data_terms = [
+                "confidential",
+                "private",
+                "protected",
+                "internal data",
+                "confidential data",
+            ]
+
+            if any(term in prompt_lower for term in privileged_role_terms) and any(
+                term in prompt_lower for term in sensitive_data_terms
+            ):
+                risk_score += 0.25
                 reasons.append(
-                    f"Matched {keyword_matches} keyword(s) in category '{category}'"
+                    "Detected privileged role escalation combined with sensitive data request"
                 )
 
-        # Combination rule: privileged role escalation + sensitive data request
-        privileged_role_terms = ["act as admin", "act as administrator", "root user", "administrator", "admin"]
-        sensitive_data_terms = ["confidential", "private", "protected", "internal data", "confidential data"]
+            override_terms = ["ignore", "disregard", "override", "forget"]
+            extraction_terms = [
+                "system prompt",
+                "hidden instructions",
+                "internal prompt",
+                "internal policies",
+                "configuration",
+            ]
 
-        if any(term in prompt_lower for term in privileged_role_terms) and any(
-            term in prompt_lower for term in sensitive_data_terms
-        ):
-            risk_score += 0.25
-            reasons.append(
-                "Detected privileged role escalation combined with sensitive data request"
-            )
+            if any(term in prompt_lower for term in override_terms) and any(
+                term in prompt_lower for term in extraction_terms
+            ):
+                risk_score += 0.20
+                reasons.append(
+                    "Detected instruction override combined with system/internal information extraction"
+                )
 
-        # Combination rule: override intent + system/internal info extraction
-        override_terms = ["ignore", "disregard", "override", "forget"]
-        extraction_terms = ["system prompt", "hidden instructions", "internal prompt", "internal policies", "configuration"]
+        # 3. Semantic similarity (full only)
+        if self.mode == "full" and self.semantic_service is not None:
+            semantic_similarity = self.semantic_service.compute_similarity(prompt)
 
-        if any(term in prompt_lower for term in override_terms) and any(
-            term in prompt_lower for term in extraction_terms
-        ):
-            risk_score += 0.20
-            reasons.append(
-                "Detected instruction override combined with system/internal information extraction"
-            )
-
-        # Semantic similarity score
-        semantic_similarity = self.semantic_service.compute_similarity(prompt)
-        if semantic_similarity >= 0.70:
-            risk_score += 0.40
-            reasons.append(
-                f"High semantic similarity to known attack prompts ({semantic_similarity:.2f})"
-            )
-        elif semantic_similarity >= 0.55:
-            risk_score += 0.20
-            reasons.append(
-                f"Moderate semantic similarity to known attack prompts ({semantic_similarity:.2f})"
-            )
+            if semantic_similarity >= 0.70:
+                risk_score += 0.40
+                reasons.append(
+                    f"High semantic similarity to known attack prompts ({semantic_similarity:.2f})"
+                )
+            elif semantic_similarity >= 0.55:
+                risk_score += 0.20
+                reasons.append(
+                    f"Moderate semantic similarity to known attack prompts ({semantic_similarity:.2f})"
+                )
 
         risk_score = min(risk_score, 1.0)
 
